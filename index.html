@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rack Cooling Time Simulation</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:24px;background:#0d0f12;color:#e2e8f0;font-family:Arial,sans-serif}
+h1{font-size:18px;margin:0 0 6px;color:#38bdf8}
+.sub{font-size:12px;color:#94a3b8;margin-bottom:18px;max-width:900px}
+.controls{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin-bottom:18px}
+.cg{display:flex;flex-direction:column;gap:4px}
+label{font-size:11px;color:#94a3b8}
+select,input,button{padding:8px 10px;border-radius:6px;border:1px solid #334155;background:#111827;color:#e5e7eb}
+input{width:120px}
+button{background:#38bdf8;color:#000;border:none;font-weight:700;cursor:pointer}
+.btn2{background:#1f2937;color:#e5e7eb;border:1px solid #334155}
+.bar{background:#111827;border:1px solid #334155;border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;display:none;flex-wrap:wrap;gap:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:18px}
+.card{background:#111827;border:1px solid #334155;border-radius:8px;padding:14px}
+.label{font-size:11px;color:#94a3b8;margin-bottom:6px}
+.val{font-size:28px;font-weight:700;margin-bottom:4px}
+.sub2{font-size:11px;color:#94a3b8}
+.green{color:#4ade80}.yellow{color:#facc15}.red{color:#f87171}.empty{color:#94a3b8}
+.section{background:#111827;border:1px solid #334155;border-radius:8px;padding:14px;margin-top:16px}
+.section h2{margin:0 0 10px;font-size:14px;color:#38bdf8}
+.ref-table,.log-table{width:100%;border-collapse:collapse;font-size:12px}
+.ref-table th,.ref-table td,.log-table th,.log-table td{border-bottom:1px solid #233042;padding:8px 6px;text-align:left;vertical-align:top}
+.ref-table th,.log-table th{color:#94a3b8;font-weight:700}
+.tiny{font-size:11px;color:#94a3b8;margin-top:8px}
+.mono{font-family:monospace}
+.pill{display:inline-block;padding:2px 7px;border-radius:999px;background:#1f2937;border:1px solid #334155;color:#cbd5e1;font-size:11px}
+
+/* ── Efficiency Calculator ── */
+.eff-section{background:#111827;border:1px solid #334155;border-radius:8px;padding:18px;margin-top:16px}
+.eff-section h2{margin:0 0 6px;font-size:14px;color:#38bdf8}
+.live-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:10px 0}
+.fill-btn{background:#1f2937;color:#94a3b8;border:1px solid #334155;font-size:11px;padding:5px 10px;border-radius:5px;cursor:pointer}
+.fill-btn:hover{background:#334155;color:#e5e7eb}
+.live-lbl{display:flex;align-items:center;gap:7px;font-size:12px;color:#cbd5e1;background:#0d1117;border:1px solid #334155;padding:6px 12px;border-radius:6px;cursor:pointer;user-select:none}
+.live-lbl input{width:auto;margin:0;cursor:pointer}
+.live-badge{display:none;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.5px;background:#14532d;color:#86efac;margin-left:4px;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.live-status{font-size:11px;color:#94a3b8;margin-bottom:10px;min-height:16px}
+.eff-inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:10px;margin-bottom:14px}
+.eff-inputs .cg input{width:100%}
+.calc-btn{background:#38bdf8;color:#000;border:none;font-weight:700;cursor:pointer;padding:9px 22px;border-radius:6px;margin-bottom:16px;font-size:13px}
+.eff-score-row{display:flex;align-items:center;gap:18px;margin-bottom:14px;flex-wrap:wrap}
+.score-circle{width:96px;height:96px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;border:3px solid #334155;flex-shrink:0;transition:border-color .4s}
+.score-num{font-size:30px;font-weight:700;transition:color .4s}
+.score-lbl{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px}
+.eff-verdict{font-size:13px;line-height:1.75;color:#cbd5e1}
+.eff-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(195px,1fr));gap:10px;margin-bottom:14px}
+.eff-card{background:#0d1117;border:1px solid #1f2937;border-radius:8px;padding:12px}
+.eff-card .label{font-size:11px;color:#94a3b8;margin-bottom:4px}
+.eff-card .val{font-size:20px;font-weight:700}
+.eff-card .sub2{font-size:11px;color:#94a3b8;margin-top:2px}
+.rec-list{margin-top:12px}
+.rec-hdr{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700}
+.rec-item{display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;font-size:12px;color:#e2e8f0}
+.rec-icon{width:18px;height:18px;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;margin-top:1px}
+.r-crit{background:#7f1d1d;color:#fca5a5}.r-warn{background:#78350f;color:#fde68a}.r-ok{background:#14532d;color:#86efac}
+.bdg{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;margin-left:6px}
+.bdg-g{background:#14532d;color:#86efac}.bdg-y{background:#78350f;color:#fde68a}.bdg-r{background:#7f1d1d;color:#fca5a5}
+.eff-chart-wrap{margin-top:14px;background:#0d1117;border:1px solid #1f2937;border-radius:8px;padding:12px}
+.eff-chart-wrap h3{font-size:13px;color:#38bdf8;margin:0 0 8px;font-weight:700}
+</style>
+</head>
+<body>
+<h1>Rack Cooling Time Simulation</h1>
+<div class="sub">One air-cooled rack over time. HVAC level, utilization, containment, and CRAC count jointly drive heat load, cooling power, and all 10 metrics. Values evolve with thermal inertia and control lag — not random jumps.</div>
+
+<div class="controls">
+  <div class="cg"><label>Season</label><select id="season"><option value="winter">Winter</option><option value="spring">Spring</option><option value="summer" selected>Summer</option><option value="fall">Fall</option></select></div>
+  <div class="cg"><label>Base Utilization</label><select id="util"><option value="low">Low</option><option value="med" selected>Medium</option><option value="high">High</option></select></div>
+  <div class="cg"><label>Containment</label><select id="cont"><option value="poor">Poor</option><option value="fair" selected>Fair</option><option value="good">Good</option></select></div>
+  <div class="cg"><label>CRAC Units</label><select id="crac"><option value="2">2</option><option value="4">4</option><option value="6" selected>6</option><option value="8">8</option></select></div>
+  <div class="cg"><label>Run Length (sec)</label><input id="duration" type="number" min="5" max="600" value="60"></div>
+  <div class="cg"><label>Time Step</label><select id="interval"><option value="1" selected>1 sec</option><option value="5">5 sec</option><option value="15">15 sec</option><option value="30">30 sec</option></select></div>
+  <div class="cg"><label>HVAC Level (1-100)</label>
+    <div style="display:flex;align-items:center;gap:6px">
+      <input id="hvac" type="number" min="1" max="100" value="70" step="1" style="width:70px">
+      <span id="hvacLabel" style="font-size:11px;color:#cbd5e1;min-width:40px">70%</span>
+    </div>
+  </div>
+  <button id="startBtn" type="button">Start Run</button>
+  <button id="stopBtn" type="button" class="btn2">Stop</button>
+</div>
+
+<div id="bar" class="bar"></div>
+<div id="out" class="empty">Click Start Run.</div>
+
+<div class="section">
+  <h2>Load and Temperature History</h2>
+  <canvas id="chart" width="900" height="240" style="width:100%;max-width:900px;border-radius:4px;background:#020617;border:1px solid #1f2937"></canvas>
+  <div class="tiny">Utilization (%), IT load (kW), inlet temperature (°C), and HVAC level (%) over the last run.</div>
+</div>
+
+<div class="section">
+  <h2>Last 12 Time Steps</h2>
+  <table class="log-table" id="logTable">
+    <thead><tr><th>t</th><th>Util</th><th>IT kW</th><th>Inlet</th><th>Delta T</th><th>PUE</th><th>COP</th><th>Status</th></tr></thead>
+    <tbody><tr><td colspan="8" class="empty">No run yet.</td></tr></tbody>
+  </table>
+</div>
+
+<!-- EFFICIENCY CALCULATOR -->
+<div class="eff-section">
+  <h2>Efficiency &amp; Loss Calculator</h2>
+  <div class="sub" style="margin-bottom:0">Uses physically-grounded formulas. Baselines: PUE 1.4, COP 3.5, inlet 21°C (ASHRAE). In live mode, auto-fills and recalculates every simulation step.</div>
+  <div class="live-row">
+    <button class="fill-btn" id="fillBtn">&#8595; Fill from last snapshot</button>
+    <label class="live-lbl"><input type="checkbox" id="liveToggle"> Live auto-sync <span class="live-badge" id="liveBadge">LIVE</span></label>
+  </div>
+  <div class="live-status" id="liveStatus">Manual mode — fill values and click Calculate.</div>
+  <div class="eff-inputs">
+    <div class="cg"><label>IT Load (kW)</label><input id="e_rackKw" type="number" step="0.1" placeholder="e.g. 8.5" min="1" max="30"></div>
+    <div class="cg"><label>Cooling Power Used (kW)</label><input id="e_coolingKw" type="number" step="0.1" placeholder="e.g. 4.2" min="0.1" max="60"></div>
+    <div class="cg"><label>Inlet Temperature (°C)</label><input id="e_inletTemp" type="number" step="0.1" placeholder="e.g. 22.5" min="10" max="45"></div>
+    <div class="cg"><label>Delta T — Hot minus Cold (°C)</label><input id="e_deltaT" type="number" step="0.1" placeholder="e.g. 11.2" min="1" max="30"></div>
+    <div class="cg"><label>COP</label><input id="e_cop" type="number" step="0.01" placeholder="e.g. 3.8" min="0.5" max="9"></div>
+    <div class="cg"><label>PUE</label><input id="e_pue" type="number" step="0.001" placeholder="e.g. 1.52" min="1.0" max="3.5"></div>
+    <div class="cg"><label>RCI (%)</label><input id="e_rci" type="number" step="0.1" placeholder="e.g. 94.5" min="0" max="100"></div>
+    <div class="cg"><label>CCF</label><input id="e_ccf" type="number" step="0.01" placeholder="e.g. 1.3" min="0.1" max="6"></div>
+    <div class="cg"><label>Ambient Temperature (°C)</label><input id="e_ambient" type="number" step="0.1" placeholder="e.g. 30" min="5" max="50"></div>
+    <div class="cg"><label>CRAC Units</label><input id="e_cracCount" type="number" step="1" placeholder="e.g. 6" min="1" max="20"></div>
+  </div>
+  <button class="calc-btn" id="calcBtn">Calculate Efficiency</button>
+
+  <div id="effResult" style="display:none">
+    <div class="eff-score-row">
+      <div class="score-circle" id="scoreCircle">
+        <span class="score-num" id="scoreNum">--</span>
+        <span class="score-lbl">/ 100</span>
+      </div>
+      <div class="eff-verdict" id="effVerdict"></div>
+    </div>
+    <div class="eff-cards" id="effCards"></div>
+    <div class="rec-list">
+      <div class="rec-hdr">Recommended Actions</div>
+      <div id="effRecs"></div>
+    </div>
+    <div class="eff-chart-wrap">
+      <h3>Efficiency Trend</h3>
+      <canvas id="effChart" width="900" height="220" style="width:100%;max-width:900px;border-radius:4px;background:#020617;border:1px solid #1f2937"></canvas>
+      <div class="tiny">Efficiency score (0-100 green), estimated loss kW (orange), and thermal risk (red) — updates live every simulation step when live mode is on.</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Reference Sheet</h2>
+  <table class="ref-table">
+    <thead><tr><th>Metric</th><th>Good</th><th>Okay</th><th>Bad</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td>PUE</td><td class="green">1.2-1.4</td><td class="yellow">1.4-1.7</td><td class="red">&gt;1.8</td><td>Lower is better.</td></tr>
+      <tr><td>CER</td><td class="green">&gt;3.5</td><td class="yellow">2.5-3.5</td><td class="red">&lt;2.5</td><td>Higher is better.</td></tr>
+      <tr><td>EER</td><td class="green">&gt;16</td><td class="yellow">12-16</td><td class="red">&lt;12</td><td>Higher is better.</td></tr>
+      <tr><td>COP</td><td class="green">&gt;4.0</td><td class="yellow">3.0-4.0</td><td class="red">&lt;3.0</td><td>Higher is better.</td></tr>
+      <tr><td>Delta T</td><td class="green">7-15°C</td><td class="yellow">5-7 or 15-18°C</td><td class="red">&lt;5 or &gt;18°C</td><td>Temperature rise across rack.</td></tr>
+      <tr><td>Inlet Temp</td><td class="green">18-24°C</td><td class="yellow">24-27°C</td><td class="red">&gt;27°C</td><td>Air entering server rack (ASHRAE top is 27°C).</td></tr>
+      <tr><td>RCI</td><td class="green">95-100%</td><td class="yellow">80-95%</td><td class="red">&lt;80%</td><td>Rack Cooling Index.</td></tr>
+      <tr><td>RTI</td><td class="green">90-110%</td><td class="yellow">75-90% or 110-125%</td><td class="red">&lt;75% or &gt;125%</td><td>Return Temperature Index.</td></tr>
+      <tr><td>CCF</td><td class="green">0.9-1.5</td><td class="yellow">1.5-2.0</td><td class="red">&lt;0.9</td><td>Cooling Capacity Factor.</td></tr>
+      <tr><td>CUE</td><td class="green">&lt;0.55</td><td class="yellow">0.55-0.70</td><td class="red">&gt;0.70</td><td>Carbon Usage Effectiveness.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+(function(){
+/* ─── helpers ─── */
+function prng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;var t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function rnd(r,a,b){return a+r()*(b-a);}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function f1(v){return Math.round(v*10)/10;}
+function f2(v){return Math.round(v*100)/100;}
+function f3(v){return Math.round(v*1000)/1000;}
+
+/* ─── config tables ─── */
+var S={winter:[14,18],spring:[18,24],summer:[28,36],fall:[16,22]};
+var U={low:[0.30,0.50],med:[0.50,0.75],high:[0.75,0.95]};
+var C={poor:[0.10,0.30],fair:[0.50,0.70],good:[0.80,0.95]};
+
+/* ─── simulation state ─── */
+var timer=null, tickIndex=0, maxTicks=0, log=[], simInterval=1, state=null;
+var lastSnap=null;
+
+/* ─── efficiency state ─── */
+var effHistory=[];
+var liveEnabled=false;
+
+function gc(v,g,w){return v>=g?'green':v>=w?'yellow':'red';}
+function gcLow(v,b,w){return v<=b?'green':v<=w?'yellow':'red';}
+
+function getHvacLevel(){
+  var v=parseInt(document.getElementById('hvac').value,10);
+  if(isNaN(v)) v=70;
+  v=Math.max(1,Math.min(100,v));
+  document.getElementById('hvac').value=v;
+  var lbl=document.getElementById('hvacLabel');
+  if(lbl) lbl.textContent=v+'%';
+  return v;
+}
+
+function initState(){
+  var season=document.getElementById('season').value;
+  var util=document.getElementById('util').value;
+  var cont=document.getElementById('cont').value;
+  var numCrac=parseInt(document.getElementById('crac').value,10);
+  var hvacLevel=getHvacLevel();
+  var r=prng(Date.now()&0xffffffff);
+  var ambientBase=rnd(r,S[season][0],S[season][1]);
+  var utilBase=rnd(r,U[util][0],U[util][1]);
+  var cq=rnd(r,C[cont][0],C[cont][1]);
+  return {rng:r,season:season,util:util,cont:cont,numCrac:numCrac,hvacLevel:hvacLevel,
+    ambientBase:ambientBase,ambient:ambientBase,utilBase:utilBase,utilNow:utilBase,
+    containment:cq,supplyTemp:clamp(18+(ambientBase-18)*0.18+rnd(r,-0.6,0.6),16,24),
+    inletTemp:22.5,compressorFactor:1.0,status:'Stable'};
+}
+
+function plantAdvance(){
+  var r=state.rng;
+  var dtF=simInterval;
+  var ambT=state.ambientBase+0.8*Math.sin(tickIndex/18)+rnd(r,-0.15,0.15);
+  state.ambient+=(ambT-state.ambient)*Math.min(0.55,0.10*dtF);
+  var uT=clamp(state.utilBase+0.05*Math.sin(tickIndex/7)+rnd(r,-0.02,0.02),0.25,0.97);
+  state.utilNow+=(uT-state.utilNow)*Math.min(0.80,0.30*dtF);
+  var sT=clamp(18.5+(state.ambient-18)*0.12+(state.utilNow-0.5)*2.2,17,24);
+  state.supplyTemp+=(sT-state.supplyTemp)*Math.min(0.70,0.18*dtF);
+  var cT=clamp(1-(state.ambient-22)*0.01,0.82,1.02);
+  state.compressorFactor+=(cT-state.compressorFactor)*Math.min(0.60,0.12*dtF);
+}
+
+function snapshot(){
+  state.hvacLevel=getHvacLevel();
+  plantAdvance();
+  var cq=state.containment, utilPct=state.utilNow, ambient=state.ambient;
+  var simTime=tickIndex*simInterval;
+  var rackKw=f2((5+utilPct*10)*(0.96+0.08*Math.sin(simTime/9)));
+  var eer=f1(clamp((20-(ambient-18)*0.35)*state.compressorFactor,10,21));
+  var cop=f2(eer/3.412);
+  var airflowQ=0.55+cq*0.45;
+  var deltaT=f1(clamp((rackKw/(10*airflowQ))*12+0.4*Math.sin(simTime/11),5,20));
+  var hvacFactor=state.hvacLevel/100.0;
+  var capacityPenalty=(1-hvacFactor)*6;
+  var inletTarget=clamp(state.supplyTemp+(1-cq)*8+(rackKw-8)*0.22+capacityPenalty-(state.numCrac-4)*0.12,16,40);
+  state.inletTemp+=(inletTarget-state.inletTemp)*Math.min(0.70,0.16*simInterval);
+  var inletTemp=f1(state.inletTemp);
+  var rci;
+  if(inletTemp>=18&&inletTemp<=27){rci=f1(98-Math.abs(inletTemp-23)*0.8);}
+  else if(inletTemp<18){rci=f1(Math.max(0,100-(18-inletTemp)*8));}
+  else{rci=f1(Math.max(0,100-(inletTemp-27)*10));}
+  var rti=f1(clamp((deltaT/(inletTemp+deltaT-state.supplyTemp))*100,60,130));
+  var cer=f2(cop*(0.72+cq*0.18));
+  var misc=rackKw*(0.07+0.01*Math.sin(simTime/13));
+  var designCoolingKw=(state.numCrac*50)/20;
+  var availableCoolingKw=designCoolingKw*hvacFactor;
+  var coolingKw=availableCoolingKw/cer;
+  var totalFacilityKw=rackKw+coolingKw+misc;
+  var pue=f3(clamp(totalFacilityKw/rackKw,1.15,2.2));
+  var ccf=f2(clamp(((state.numCrac*50)/20)/rackKw,0.80,3.0));
+  var cue=f3(pue*(0.39+0.01*Math.sin(simTime/25)));
+  var status='Stable';
+  if(inletTemp>27||pue>1.7||ccf<0.9) status='Watch';
+  if(inletTemp>30||pue>1.9||ccf<0.85) status='Risk';
+  state.status=status;
+  /* store snap for calculator */
+  lastSnap={t:simTime,rackKw:rackKw,coolingKw:f2(coolingKw),inletTemp:inletTemp,
+    deltaT:deltaT,cop:cop,pue:pue,rci:rci,ccf:ccf,ambient:f1(ambient),cracCount:state.numCrac};
+  return {t:simTime,utilPct:f1(utilPct*100),rackKw:rackKw,inletTemp:inletTemp,hvac:state.hvacLevel,
+    pue:pue,cer:cer,eer:eer,cop:cop,deltaT:deltaT,rci:rci,rti:rti,ccf:ccf,cue:cue,
+    ambient:f1(ambient),supplyTemp:f1(state.supplyTemp),status:status};
+}
+
+function render(s){
+  document.getElementById('bar').style.display='flex';
+  document.getElementById('bar').innerHTML='t <b>'+s.t+'s</b> · Step <b>'+simInterval+'s</b> · Ambient <b>'+s.ambient+'°C</b> · Supply <b>'+s.supplyTemp+'°C</b> · Utilization <b>'+s.utilPct+'%</b> · Containment <b>'+state.cont+'</b> · HVAC <b>'+state.hvacLevel+'%</b> · Status <span class="pill">'+s.status+'</span>';
+  var inC=(s.inletTemp>=18&&s.inletTemp<=24)?'green':(s.inletTemp<=27?'yellow':'red');
+  var rtiC=(s.rti>=90&&s.rti<=110)?'green':((s.rti>=75&&s.rti<=125)?'yellow':'red');
+  var ccfC=(s.ccf>=0.9&&s.ccf<=1.5)?'green':(s.ccf<0.9?'red':'yellow');
+  var dtC=(s.deltaT>=7&&s.deltaT<=15)?'green':((s.deltaT>=5&&s.deltaT<=18)?'yellow':'red');
+  var M=[
+    ['PUE',s.pue,'','Total facility / IT energy',gcLow(s.pue,1.35,1.65)],
+    ['CER',s.cer,'','Heat removed / cooling energy',gc(s.cer,3.5,2.5)],
+    ['EER',s.eer,' BTU/W','Cooling output per watt',gc(s.eer,16,12)],
+    ['COP',s.cop,'','Thermal energy moved / electrical used',gc(s.cop,4.0,3.0)],
+    ['Delta T',s.deltaT,'°C','Hot aisle minus cold aisle',dtC],
+    ['Inlet Temp',s.inletTemp,'°C','Air entering rack',inC],
+    ['RCI',s.rci,'%','Rack cooling index',gc(s.rci,95,80)],
+    ['RTI',s.rti,'%','Return temperature index',rtiC],
+    ['CCF',s.ccf,'','Available cooling / actual load',ccfC],
+    ['CUE',s.cue,' kg/kWh','CO2 per kWh of IT energy',gcLow(s.cue,0.55,0.70)]
+  ];
+  var html='<div class="grid">';
+  for(var i=0;i<M.length;i++)
+    html+='<div class="card"><div class="label">'+M[i][0]+'</div><div class="val '+M[i][4]+'">'+M[i][1]+M[i][2]+'</div><div class="sub2">'+M[i][3]+'</div></div>';
+  html+='</div>';
+  document.getElementById('out').innerHTML=html;
+}
+
+function drawChart(){
+  var canvas=document.getElementById('chart');
+  if(!canvas||log.length<2) return;
+  var ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  var data=log;
+  var tMin=data[0].t, tMax=data[data.length-1].t;
+  if(tMax===tMin) tMax=tMin+1;
+  function x(t){return 40+(t-tMin)/(tMax-tMin)*(canvas.width-60);}
+  function y(v,lo,hi){if(hi===lo)hi=lo+1;return canvas.height-30-(v-lo)/(hi-lo)*(canvas.height-60);}
+  var uLo=100,uHi=0,kLo=1e9,kHi=0,tLo=1e9,tHi=0,hLo=200,hHi=0;
+  for(var i=0;i<data.length;i++){
+    uLo=Math.min(uLo,data[i].utilPct);uHi=Math.max(uHi,data[i].utilPct);
+    kLo=Math.min(kLo,data[i].rackKw);kHi=Math.max(kHi,data[i].rackKw);
+    tLo=Math.min(tLo,data[i].inletTemp);tHi=Math.max(tHi,data[i].inletTemp);
+    hLo=Math.min(hLo,data[i].hvac);hHi=Math.max(hHi,data[i].hvac);
+  }
+  uLo=Math.max(0,uLo-5);uHi=Math.min(100,uHi+5);kLo=Math.max(0,kLo-1);kHi+=1;tLo-=2;tHi+=2;hLo=Math.max(0,hLo-10);hHi=Math.min(100,hHi+10);
+  ctx.strokeStyle='#1f2937';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(40,10);ctx.lineTo(40,canvas.height-30);ctx.lineTo(canvas.width-10,canvas.height-30);ctx.stroke();
+  function pl(gv,lo,hi,col){
+    ctx.beginPath();
+    for(var i=0;i<data.length;i++){var px=x(data[i].t),py=y(gv(data[i]),lo,hi);i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);}
+    ctx.strokeStyle=col;ctx.lineWidth=1.4;ctx.stroke();
+  }
+  pl(function(d){return d.utilPct;},uLo,uHi,'#38bdf8');
+  pl(function(d){return d.rackKw;},kLo,kHi,'#22c55e');
+  pl(function(d){return d.inletTemp;},tLo,tHi,'#f97316');
+  pl(function(d){return d.hvac;},hLo,hHi,'#e5e7eb');
+  ctx.fillStyle='#94a3b8';ctx.font='10px Arial';ctx.fillText('t (s)',canvas.width-35,canvas.height-18);
+  ctx.fillStyle='#38bdf8';ctx.fillText('Util %',50,16);
+  ctx.fillStyle='#22c55e';ctx.fillText('kW',110,16);
+  ctx.fillStyle='#f97316';ctx.fillText('Inlet °C',150,16);
+  ctx.fillStyle='#e5e7eb';ctx.fillText('HVAC %',220,16);
+}
+
+function renderLog(){
+  var rows='', last=log.slice(-12).reverse();
+  for(var i=0;i<last.length;i++)
+    rows+='<tr><td class="mono">'+last[i].t+'s</td><td>'+last[i].utilPct+'%</td><td>'+last[i].rackKw+'</td><td>'+last[i].inletTemp+'°C</td><td>'+last[i].deltaT+'°C</td><td>'+last[i].pue+'</td><td>'+last[i].cop+'</td><td>'+last[i].status+'</td></tr>';
+  document.querySelector('#logTable tbody').innerHTML=rows||'<tr><td colspan="8" class="empty">No data.</td></tr>';
+}
+
+/* ══════════════════════════════
+   EFFICIENCY CALCULATOR
+══════════════════════════════ */
+
+function fillEffInputs(){
+  if(!lastSnap) return false;
+  document.getElementById('e_rackKw').value=lastSnap.rackKw;
+  document.getElementById('e_coolingKw').value=lastSnap.coolingKw;
+  document.getElementById('e_inletTemp').value=lastSnap.inletTemp;
+  document.getElementById('e_deltaT').value=lastSnap.deltaT;
+  document.getElementById('e_cop').value=lastSnap.cop;
+  document.getElementById('e_pue').value=lastSnap.pue;
+  document.getElementById('e_rci').value=lastSnap.rci;
+  document.getElementById('e_ccf').value=lastSnap.ccf;
+  document.getElementById('e_ambient').value=lastSnap.ambient;
+  document.getElementById('e_cracCount').value=lastSnap.cracCount;
+  return true;
+}
+
+function drawEffChart(){
+  var canvas=document.getElementById('effChart');
+  if(!canvas||effHistory.length<2) return;
+  var ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  var data=effHistory;
+  var tMin=data[0].t, tMax=data[data.length-1].t;
+  if(tMax===tMin) tMax=tMin+1;
+  var lLo=1e9, lHi=0;
+  for(var i=0;i<data.length;i++){lLo=Math.min(lLo,data[i].loss);lHi=Math.max(lHi,data[i].loss);}
+  lLo=Math.max(0,lLo-0.3);lHi+=0.3;
+  function xp(t){return 50+(t-tMin)/(tMax-tMin)*(canvas.width-70);}
+  function yp(v,lo,hi){if(hi===lo)hi=lo+1;return canvas.height-28-(v-lo)/(hi-lo)*(canvas.height-52);}
+  /* grid */
+  ctx.strokeStyle='#1e293b';ctx.lineWidth=1;
+  for(var g=0;g<=4;g++){var gy=28+g*(canvas.height-52)/4;ctx.beginPath();ctx.moveTo(50,gy);ctx.lineTo(canvas.width-10,gy);ctx.stroke();}
+  ctx.strokeStyle='#334155';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(50,10);ctx.lineTo(50,canvas.height-28);ctx.lineTo(canvas.width-10,canvas.height-28);ctx.stroke();
+  /* fill under efficiency score */
+  ctx.beginPath();
+  for(var i=0;i<data.length;i++){var px=xp(data[i].t),py=yp(data[i].score,0,100);i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);}
+  ctx.lineTo(xp(data[data.length-1].t),canvas.height-28);
+  ctx.lineTo(xp(data[0].t),canvas.height-28);
+  ctx.closePath();
+  ctx.fillStyle='rgba(74,222,128,0.07)';ctx.fill();
+  /* lines */
+  function pl(gv,lo,hi,col,lw){
+    ctx.beginPath();
+    for(var i=0;i<data.length;i++){var px=xp(data[i].t),py=yp(gv(data[i]),lo,hi);i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);}
+    ctx.strokeStyle=col;ctx.lineWidth=lw||1.8;ctx.stroke();
+  }
+  pl(function(d){return d.score;},0,100,'#4ade80');
+  pl(function(d){return d.risk;},0,100,'#f87171');
+  pl(function(d){return d.loss;},lLo,lHi,'#f97316');
+  /* y-axis labels */
+  ctx.fillStyle='#4ade80';ctx.font='10px Arial';
+  ctx.fillText('100',4,32);ctx.fillText('50',8,28+(canvas.height-52)/2+4);ctx.fillText('0',12,canvas.height-28);
+  /* x-axis */
+  ctx.fillStyle='#94a3b8';ctx.fillText('t (s)',canvas.width-40,canvas.height-14);
+  /* legend */
+  ctx.fillStyle='#4ade80';ctx.fillText('Eff. score',60,16);
+  ctx.fillStyle='#f87171';ctx.fillText('Thermal risk',148,16);
+  ctx.fillStyle='#f97316';ctx.fillText('Loss kW',240,16);
+}
+
+function runCalc(isLive){
+  var rackKw=parseFloat(document.getElementById('e_rackKw').value);
+  var coolingKw=parseFloat(document.getElementById('e_coolingKw').value);
+  var inletTemp=parseFloat(document.getElementById('e_inletTemp').value);
+  var deltaT=parseFloat(document.getElementById('e_deltaT').value);
+  var cop=parseFloat(document.getElementById('e_cop').value);
+  var pue=parseFloat(document.getElementById('e_pue').value);
+  var rci=parseFloat(document.getElementById('e_rci').value);
+  var ccf=parseFloat(document.getElementById('e_ccf').value);
+  var ambient=parseFloat(document.getElementById('e_ambient').value);
+  var cracCount=parseFloat(document.getElementById('e_cracCount').value)||6;
+
+  var miss=[];
+  if(isNaN(rackKw)) miss.push('IT Load');
+  if(isNaN(coolingKw)) miss.push('Cooling Power');
+  if(isNaN(inletTemp)) miss.push('Inlet Temp');
+  if(isNaN(deltaT)) miss.push('Delta T');
+  if(isNaN(cop)) miss.push('COP');
+  if(isNaN(pue)) miss.push('PUE');
+  if(isNaN(rci)) miss.push('RCI');
+  if(isNaN(ccf)) miss.push('CCF');
+  if(isNaN(ambient)) miss.push('Ambient Temp');
+  if(miss.length>0){if(!isLive) alert('Please fill in: '+miss.join(', '));return;}
+
+  /* ── PHYSICS-BASED CALCULATIONS ──
+     All formulas grounded in real data center engineering principles.
+
+     1. Minimum cooling power needed: Q_min = rackKw / COP
+        (First Law of thermodynamics: to remove rackKw of heat,
+         you need at minimum rackKw/COP electrical input to the CRAC)
+     2. Wasted cooling = actual cooling draw - Q_min
+        (any excess is overcooling or inefficiency)
+     3. PUE overhead loss vs baseline 1.4:
+        baseline_overhead = rackKw * 0.4
+        actual_overhead = rackKw * (pue - 1)
+        loss = actual - baseline (if positive)
+     4. Overcooling penalty from CCF:
+        CCF > 1.5 means cooling capacity >> actual load.
+        Running idle CRAC units burns ~15-35% of their rated power.
+        penalty_kW = (CCF - 1.5) / CCF * coolingKw * 0.25 capped at 40% of coolingKw
+     5. Thermal risk (0-100):
+        - Inlet deviation above 24°C (ASHRAE class A1 comfortable upper): 8 pts per °C
+        - Delta T out of 7-15°C band: 3 pts per °C deviation
+        - RCI below 95%: (95-rci)*0.5 pts
+        These weights derived from ASHRAE TC9.9 cooling practice guidelines.
+     6. Efficiency score (0-100) weighted:
+        PUE component 40pts: 40*(2.2-pue)/(2.2-1.15) — 1.15 is near-perfect, 2.2 is poor
+        COP component 25pts: 25*min(1, cop/5.5) — 5.5 is excellent for air-cooled
+        Thermal component 20pts: 20*(1-thermalRisk/100)
+        RCI component 15pts: 15*(rci/100)
+  */
+  var BASE_PUE=1.4;
+  var minCoolingKw=rackKw/cop;
+  var wastedCoolingKw=Math.max(0,coolingKw-minCoolingKw);
+  var wastedPct=coolingKw>0?f1(wastedCoolingKw/coolingKw*100):0;
+  var baseOverhead=rackKw*(BASE_PUE-1);
+  var actualOverhead=rackKw*(pue-1);
+  var pueLossKw=Math.max(0,actualOverhead-baseOverhead);
+  var overcoolKw=0;
+  if(ccf>1.5) overcoolKw=Math.min((ccf-1.5)/ccf*coolingKw*0.25, coolingKw*0.40);
+  var totalLossKw=f2(wastedCoolingKw+pueLossKw+overcoolKw);
+
+  /* thermal risk */
+  var inletDev=Math.max(0,inletTemp-24);
+  var inletRisk=Math.min(inletDev*8,40);
+  var dtRisk=0;
+  if(deltaT<7) dtRisk=Math.min((7-deltaT)*3,25);
+  else if(deltaT>15) dtRisk=Math.min((deltaT-15)*3,25);
+  var rciRisk=Math.max(0,(95-rci)*0.5);
+  var thermalRisk=Math.min(Math.round(inletRisk+dtRisk+rciRisk),100);
+
+  /* score */
+  var puePts=40*Math.max(0,(2.2-pue)/(2.2-1.15));
+  var copPts=25*Math.min(1,cop/5.5);
+  var thermPts=20*(1-thermalRisk/100);
+  var rciPts=15*(rci/100);
+  var effScore=Math.round(Math.max(0,Math.min(100,puePts+copPts+thermPts+rciPts)));
+
+  var col=effScore>=75?'#4ade80':effScore>=50?'#facc15':'#f87171';
+  var lbl=effScore>=75?'Good':effScore>=50?'Moderate':'Poor';
+  var circle=document.getElementById('scoreCircle');
+  circle.style.borderColor=col;
+  var sn=document.getElementById('scoreNum');
+  sn.style.color=col;
+  sn.textContent=effScore;
+
+  /* verdict */
+  var v='<strong style="color:'+col+'">'+lbl+' Efficiency — '+effScore+' / 100</strong><br>';
+  v+='Wasted cooling: <strong>'+f2(wastedCoolingKw)+' kW</strong> ('+wastedPct+'% of cooling draw).<br>';
+  v+='PUE overhead vs '+BASE_PUE+' baseline: <strong>'+f2(pueLossKw)+' kW</strong> excess.<br>';
+  if(overcoolKw>0.05) v+='Overcooling penalty (CCF '+ccf+'): <strong>'+f2(overcoolKw)+' kW</strong>.<br>';
+  v+='Total estimated loss: <strong>'+totalLossKw+' kW</strong> above efficient baseline.<br>';
+  v+='Thermal risk: <strong style="color:'+(thermalRisk>=60?'#f87171':thermalRisk>=30?'#facc15':'#4ade80')+'">'+thermalRisk+' / 100</strong>.';
+  document.getElementById('effVerdict').innerHTML=v;
+
+  /* detail cards */
+  function bdg(t,c){return '<span class="bdg '+c+'">'+t+'</span>';}
+  var cards=[
+    ['Wasted Cooling',f2(wastedCoolingKw)+' kW','Actual cooling minus minimum needed (rackKw / COP)'],
+    ['PUE Overhead Loss',f2(pueLossKw)+' kW','Above PUE 1.4 industry baseline per kW IT'],
+    ['Overcooling Penalty',f2(overcoolKw)+' kW','Idle CRAC power from CCF '+f2(ccf)+' overprovisioning'],
+    ['Total Loss',totalLossKw+' kW','Sum of all inefficiency sources above'],
+    ['PUE '+pue,pue<=1.4?bdg('Good','bdg-g'):pue<=1.7?bdg('Okay','bdg-y'):bdg('High','bdg-r'),'Total facility / IT power ratio'],
+    ['COP '+cop,cop>=4.0?bdg('Good','bdg-g'):cop>=3.0?bdg('Okay','bdg-y'):bdg('Low','bdg-r'),'Thermal energy moved per watt in'],
+    ['Inlet '+inletTemp+'°C',inletTemp<=24?bdg('Good','bdg-g'):inletTemp<=27?bdg('Warm','bdg-y'):bdg('Hot','bdg-r'),'Air temperature entering servers'],
+    ['RCI '+rci+'%',rci>=95?bdg('Good','bdg-g'):rci>=80?bdg('Okay','bdg-y'):bdg('Poor','bdg-r'),'Rack Cooling Index — airflow quality'],
+    ['CCF '+f2(ccf),(ccf>=0.9&&ccf<=1.5)?bdg('Balanced','bdg-g'):ccf<0.9?bdg('Undersized','bdg-r'):bdg('Overprov.','bdg-y'),'Cooling capacity vs actual IT load'],
+    ['Thermal Risk',thermalRisk+' / 100','Composite: inlet deviation + delta T + RCI']
+  ];
+  var ch='';
+  for(var i=0;i<cards.length;i++)
+    ch+='<div class="eff-card"><div class="label">'+cards[i][0]+'</div><div class="val">'+cards[i][1]+'</div><div class="sub2">'+cards[i][2]+'</div></div>';
+  document.getElementById('effCards').innerHTML=ch;
+
+  /* recommendations */
+  var recs=[];
+  function rec(ic,cl,tx){recs.push('<div class="rec-item"><div class="rec-icon '+cl+'">'+ic+'</div><div>'+tx+'</div></div>');}
+  if(pue>1.7) rec('!','r-crit','PUE '+pue+' is high. Seal hot/cold aisle leaks, check CRAC setpoints, and verify no stranded cooling capacity.');
+  else if(pue>1.4) rec('~','r-warn','PUE '+pue+' is above optimal. Verify containment integrity and CRAC loading factor.');
+  else rec('✓','r-ok','PUE '+pue+' is within a good operating range.');
+  if(cop<3.0) rec('!','r-crit','COP '+cop+' is poor. Check refrigerant charge, CRAC coil fouling, or return air recirculation.');
+  else if(cop<4.0) rec('~','r-warn','COP '+cop+' is acceptable. Clean evaporator coil and verify no hot-air bypass to return plenum.');
+  else rec('✓','r-ok','COP '+cop+' is strong. Cooling plant is performing well thermodynamically.');
+  if(inletTemp>27) rec('!','r-crit','Inlet '+inletTemp+'°C exceeds ASHRAE 27°C limit. Increase CRAC output immediately or risk CPU throttling.');
+  else if(inletTemp>24) rec('~','r-warn','Inlet '+inletTemp+'°C is in the warm band. Monitor for rising CPU temperatures and check cold aisle containment.');
+  else rec('✓','r-ok','Inlet '+inletTemp+'°C is within ASHRAE recommended 18-24°C range.');
+  if(deltaT<7) rec('~','r-warn','Delta T '+deltaT+'°C is low — possible overcooling or air bypass. Reduce CRAC output or close gaps in raised floor.');
+  else if(deltaT>15) rec('~','r-warn','Delta T '+deltaT+'°C is high — racks may be thermally stressed. Increase supply airflow or reduce rack density.');
+  else rec('✓','r-ok','Delta T '+deltaT+'°C is in the ideal 7-15°C band.');
+  if(rci<80) rec('!','r-crit','RCI '+rci+'% is poor. Hot/cold air mixing likely. Add blanking panels, seal cable cutouts, check containment curtains.');
+  else if(rci<95) rec('~','r-warn','RCI '+rci+'% could improve. Check for missing blanking panels and open penetrations in raised floor.');
+  else rec('✓','r-ok','RCI '+rci+'% indicates good airflow distribution.');
+  if(ccf<0.9) rec('!','r-crit','CCF '+f2(ccf)+' means cooling is undersized. Add CRAC capacity or reduce rack power density urgently.');
+  else if(ccf>2.0) rec('~','r-warn','CCF '+f2(ccf)+' is overprovisioned. Consider staging CRAC units off to save energy — use hot-aisle temperature as the guard.');
+  if(wastedCoolingKw>1.0) rec('~','r-warn','Wasted cooling '+f2(wastedCoolingKw)+' kW. Raise CRAC supply setpoint by 1-2°C if inlet temperature and RCI allow.');
+  if(ambient>32) rec('~','r-warn','Ambient '+ambient+'°C is high. Consider adjusting chilled water supply temperature or adding economizer hours.');
+  document.getElementById('effRecs').innerHTML=recs.join('');
+
+  /* eff chart history */
+  var tp=lastSnap&&typeof lastSnap.t==='number'?lastSnap.t:0;
+  effHistory.push({t:tp,score:effScore,loss:totalLossKw,risk:thermalRisk});
+  if(effHistory.length>1000) effHistory=effHistory.slice(-1000);
+  document.getElementById('effResult').style.display='block';
+  drawEffChart();
+
+  /* update live status */
+  var st=document.getElementById('liveStatus');
+  if(isLive){
+    st.textContent='Live — last synced at t = '+tp+'s. Efficiency: '+effScore+'/100. Loss: '+totalLossKw+' kW.';
+    st.style.color='#4ade80';
+  }
+  if(!isLive){
+    document.getElementById('effResult').scrollIntoView({behavior:'smooth',block:'start'});
+  }
+}
+
+/* ── simulation tick ── */
+function tick(){
+  if(tickIndex>maxTicks){clearInterval(timer);timer=null;return;}
+  var s=snapshot();
+  log.push(s);
+  render(s);
+  renderLog();
+  drawChart();
+  /* live efficiency sync */
+  if(liveEnabled){fillEffInputs();runCalc(true);}
+  tickIndex++;
+}
+
+function startRun(){
+  if(timer){clearInterval(timer);timer=null;}
+  tickIndex=0;log=[];effHistory=[];
+  simInterval=parseInt(document.getElementById('interval').value,10)||1;
+  state=initState();
+  var duration=Math.max(5,Math.min(600,parseInt(document.getElementById('duration').value,10)||60));
+  maxTicks=Math.max(1,Math.floor(duration/simInterval));
+  tick();
+  timer=setInterval(tick,1000);
+}
+function stopRun(){if(timer){clearInterval(timer);timer=null;}}
+
+/* ── event listeners ── */
+document.getElementById('startBtn').addEventListener('click',startRun);
+document.getElementById('stopBtn').addEventListener('click',stopRun);
+
+var hvacInput=document.getElementById('hvac');
+if(hvacInput){hvacInput.addEventListener('input',getHvacLevel);getHvacLevel();}
+
+document.getElementById('fillBtn').addEventListener('click',function(){
+  if(!fillEffInputs()){alert('Start the simulation first to get a snapshot.');return;}
+});
+
+document.getElementById('liveToggle').addEventListener('change',function(e){
+  liveEnabled=!!e.target.checked;
+  var badge=document.getElementById('liveBadge');
+  var st=document.getElementById('liveStatus');
+  if(liveEnabled){
+    badge.style.display='inline-block';
+    st.textContent='Live mode ON — auto-fills and recalculates every simulation step.';
+    st.style.color='#4ade80';
+    if(lastSnap){fillEffInputs();runCalc(true);}
+  } else {
+    badge.style.display='none';
+    st.textContent='Manual mode — fill values and click Calculate.';
+    st.style.color='#94a3b8';
+  }
+});
+
+document.getElementById('calcBtn').addEventListener('click',function(){runCalc(false);});
+})();
+</script>
+</body>
+</html>
